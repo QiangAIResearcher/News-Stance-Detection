@@ -16,7 +16,7 @@ Some statistics
         
         Number of invalid cosine distance: 68
         
-        Number of valid pairs: 4991
+        Number of valid pairs (our dataset): 4991
             
             Number of "agree" pairs: 2138
             
