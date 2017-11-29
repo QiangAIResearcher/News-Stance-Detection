@@ -39,39 +39,7 @@ def split_data(data):
     y = data.articleHeadlineStance
     x = data[['claimHeadline','articleHeadline','claimId','articleId']]
     return x,y
-'''
-def clean_sentence(s):
-    # Cleans a string: Lowercasing, trimming, removing non-alphanumeric
-    return " ".join(re.findall(r'\w+',s,flags=re.UNICODE)).lower()
 
-_wnl = nltk.WordNetLemmatizer()
-def normalize_word(w):
-    return _wnl.lemmatize(w).lower()
-
-def get_tokenized_lemmas(s):
-    return [normalize_word(t) for t in nltk.word_tokenize(s)]
-
-def remove_stopwords(l):
-    return [w for w in l if w not in feature_extraction.text.ENGLISH_STOP_WORDS]
-
-_stemmer = PorterStemmer()
-
-def get_stem(w):
-    return _stemmer.stem(w)
-    
-def gen_load_file(filename,idx_list,article_bodies):
-    if not os.path.isfile(filename):
-        text = ''
-        for i in idx_list:
-            text = text + ' ' + article_bodies[i]
-        with open (filename,"w") as txt_file:
-            txt_file.write(text)
-
-    else:
-        with open (filename,"r") as txt_file:
-            text = txt_file.read()
-    return text
-'''
 def generate_test_training_set(data, test_set_fraction=0.2):
     """
     Splits the given data into mutually exclusive test
