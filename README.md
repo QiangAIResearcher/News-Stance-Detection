@@ -9,11 +9,18 @@ Some headline/body pairs in FNC-1 are fabricated by mixing headlines and bodies.
 In William Ferreira's project, there are totally 7112 headline/body pairs, among which valid stances("for", "against", "observing") count for 5059. Further, when we convert the text to vectors by Word2Vec and calculate the cosine distance of each pair, 68 pairs have NaN for the cosine distance. Finally, we obtaine 4991 headline/body pairs. Among the 4991 pairs, 2138 pairs are labelled as "agree" with each other according to the abovementioned rules, 35 are labelled as "disagree" and 2818 are labelled as "discuss".
 
 Some statistics
+    
     Number of total headline/body pairs in Emergent dataset: 7112
+        
         Number of invalid stances: 2053
+        
         Number of invalid cosine distance: 68
+        
         Number of valid pairs: 4991
+            
             Number of "agree" pairs: 2138
+            
             Number of "disagree" pairs: 35
+            
             Number of "discuss" pairs: 2818
 
