@@ -1,0 +1,1 @@
+Features including cosine distance between headline and body are plaed in this folder.
