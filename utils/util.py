@@ -2,75 +2,82 @@
 '''
 This script get data from the .CSV file and parse components
 '''
-import os
-import nltk
-#import re
 import numpy as np
-#from sklearn import feature_extraction
-#from nltk.stem.porter import PorterStemmer
+import pandas as pd
 from csv import DictReader
-import sys, os, os.path as path
-from load_word_embeddings import LoadEmbeddings
-from doc2vec import avg_embedding_similarity
-from itertools import chain
+import os,os.path as path
+from utils.load_word_embeddings import LoadEmbeddings
+from utils.doc2vec import avg_feature_vector,len_feature_vector
 
 #character whitelist
 chars = set([chr(i) for i in range(32,128)])
-#set up some values for stances
-#stances = {'agree':0, 'disagree':1, 'discuss':2,'unrelated':3}
-VALID_STANCE_LABELS = ['for', 'against','observing']
+max_length_headlines = 20
+max_length_bodies = 100  # changed from 700
 
-_data_folder = os.path.join(os.path.dirname(__file__),'data')
+def configure():
 
-def get_dataset(filename='url-versions-2015-06-14.csv'):
+    #set up some values for stances
+    stances = {'agree':0, 'disagree':1, 'discuss':2,'unrelated':3}
+
+    _data_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)),'data')
+    feature_path = path.dirname(os.path.dirname(path.abspath(__file__))) + "/features"
+
+    # configure path and get embedding
+    embeddings_path = os.path.dirname(os.path.dirname(path.abspath(__file__))) + "/embeddings"
+    embeddPath = os.path.normpath("%s/google_news/GoogleNews-vectors-negative300.bin.gz" % (embeddings_path))
+    embeddData = os.path.normpath("%s/google_news/embedded_data/" % (embeddings_path))
+
+    vocab_size = 3000000
+    embedding_size = 300
+
+    embeddings = LoadEmbeddings(filepath=embeddPath, data_path=embeddData, vocab_size=vocab_size,
+                                embedding_size=embedding_size)
+
+    return _data_folder,feature_path, vocab_size, embedding_size, embeddings
+
+def get_dataset(_data_folder, filename='url-versions-2015-06-14.csv'):
     print ("reading dataset")
+    """
+    folder = os.path.join(_data_folder, filename)
+    return pd.DataFrame.from_csv(folder)
+    """
     rows = []
     with open(os.path.join(_data_folder,filename),'r') as table:#,encoding='utf-8'
-        r= DictReader(table)
+        dict= DictReader(table)
 
-        for line in r:
+        for line in dict:
             rows.append(line)
 
     print("Total samples: " + str(len(rows)))
     return rows
 
+def decide_stance(headline_stance,body_stance):
 
-def split_data(data):
-    y = data.articleHeadlineStance
-    x = data[['claimHeadline','articleHeadline','claimId','articleId']]
-    return x,y
+    if (body_stance == 'for' and headline_stance == 'for')\
+            or (body_stance == 'against' and headline_stance == 'against'):
+        valid_stance = 0 #'agree'
+    elif (body_stance== 'for' and headline_stance == 'against')\
+            or (body_stance == 'against' and headline_stance == 'for'):
+        valid_stance = 1 #'disagree'
+    elif body_stance == 'observing' or headline_stance == 'observing':
+        valid_stance = 2 #'discuss'
+    else:
+        print ("weird invalid stances")
 
-def generate_test_training_set(data, test_set_fraction=0.2):
-    """
-    Splits the given data into mutually exclusive test
-    and training sets using the claim ids.
-    :param data: DataFrame containing the data
-    :param test_set_fraction: percentage of data to reserve for test
-    :return: a tuple of DataFrames containing the test and training data
-    """
-    claim_ids = np.array(list(set(data.claimId.values)))
-    claim_ids_rand = np.random.permutation(claim_ids)
-    claim_ids_test = claim_ids_rand[:len(claim_ids_rand) * test_set_fraction]
-    claim_ids_train = set(claim_ids_rand).difference(claim_ids_test)
-    test_data = data[data.claimId.isin(claim_ids_test)]
-    train_data = data[data.claimId.isin(claim_ids_train)]
-    return test_data, train_data
+    return valid_stance
 
-
-def gen_idx_list(headline_stances,article_stances,idx_list):
+def gen_stance_list(stances):
     agree_list = []
     disagree_list = []
     discuss_list = []
 
-    for i_th in range(0,len(headline_stances)):
-        if (article_stances[i_th] == 'for' and headline_stances[i_th] == 'for')\
-                or (article_stances[i_th] == 'against' and headline_stances[i_th] == 'against'):
-            agree_list.append(idx_list[i_th])
-        elif (article_stances[i_th] == 'for' and headline_stances[i_th] == 'against')\
-                or (article_stances[i_th] == 'against' and headline_stances[i_th] == 'for'):
-            disagree_list.append(idx_list[i_th])
-        elif article_stances[i_th] == 'observing' or headline_stances[i_th] == 'observing':
-            discuss_list.append(idx_list[i_th])
+    for i_th in range(0,len(stances)):
+        if stances[i_th] == 0:
+            agree_list.append(stances[i_th])
+        elif stances[i_th] == 1:
+            disagree_list.append(stances[i_th])
+        elif stances[i_th] == 2:
+            discuss_list.append(stances[i_th])
         else:
             print ("weird invalid stances")
 
@@ -80,67 +87,109 @@ def gen_idx_list(headline_stances,article_stances,idx_list):
 
     return agree_list,disagree_list,discuss_list
 
+def generate_data_embeddings(rows,embeddings,embedding_size):
+
+    headlines = []
+    bodies = []
+    stances = []
+
+    # check stances and construct data list
+    for i,row in enumerate(rows):
+        v1 = avg_feature_vector(row['articleHeadline'], model=embeddings, num_features=embedding_size)
+        v2 = avg_feature_vector(row['articleBody'], model=embeddings, num_features=embedding_size)
+        headlines.append(v1)
+        bodies.append(v2)
+        stances.append(decide_stance(row['articleHeadlineStance'],row['articleStance']))
+
+    agree_idx_list, disagree_idx_list, discuss_idx_list = gen_stance_list(stances)
+
+    return headlines,bodies, stances
+
+def generate_length_embeddings(rows,embeddings, embedding_size, max_length_headlines, max_length_bodies):
+    headlines = []
+    bodies = []
+    stances = []
+
+    # check stances and construct data list
+    for i, row in enumerate(rows):
+        v1 = len_feature_vector(row['articleHeadline'], max_length_headlines,model=embeddings, embedding_size=embedding_size)
+        v2 = len_feature_vector(row['articleBody'], max_length_bodies, model=embeddings, embedding_size=embedding_size)
+        headlines.append(v1)
+        bodies.append(v2)
+        stances.append(decide_stance(row['articleHeadlineStance'], row['articleStance']))
+
+    return headlines, bodies, stances
+
+def generate_test_training_set(rows, test_set_fraction=0.2):
+    articleId_list = []
+    for i, row in enumerate(rows):
+        articleId_list.append(row['articleId'])
+
+    article_ids = np.array(list(set(articleId_list)))
+    article_ids_rand = np.random.permutation(article_ids)
+    article_ids_test = article_ids_rand[:int(len(article_ids_rand) * test_set_fraction)]
+    article_ids_train = set(article_ids_rand).difference(article_ids_test)
+
+    test_rows =  [row for row in rows if row['articleId'] in article_ids_test]
+    train_rows = [row for row in rows if row['articleId'] in article_ids_train]
+    #test_bodies =   [bodies[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_test]
+    #train_bodies =  [bodies[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_train]
+    #test_stances =    [stances[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_test]
+    #train_stances =   [stances[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_train]
+    return test_rows, train_rows
+
 def save_file(filepath,filename,variables):
     if not os.path.exists(filepath):
         os.makedirs(filepath)
-    file_short = os.path.normpath("%s/%s.dat" %(filepath, filename))
+    #file_short = os.path.normpath("%s/%s.dat" %(filepath, filename))
+    #fp = np.memmap(file_short, dtype=np.double, mode='w+', shape=variables.shape)
+    #fp[:,:] = variables[:,:]
+    #del fp
 
-    fp = np.memmap(file_short, dtype=np.double, mode='w+', shape=variables.shape)
-    fp[:,:] = variables[:,:]
-    del fp
+    file_short = os.path.normpath("%s/%s" % (filepath, filename))
+    np.save(file_short,variables)
 
+def load_file(filepath,filename):
+    if not os.path.exists(filepath):
+        print("non-existent files")
+
+    file_short = os.path.normpath("%s/%s" % (filepath, filename))
+    variables = np.load(file_short)
+    return variables
 
 if __name__ == "__main__":
 
-    df = get_dataset()
+    _data_folder, feature_path, vocab_size, embedding_size, embeddings = configure()
+    # read data
+    clean_rows = load_file(_data_folder, "url-versions-2015-06-14-CleanQZ.npy")
 
-    data_path = path.dirname(path.abspath(__file__)) + "/embeddings"
-    embeddPath = os.path.normpath("%s/google_news/GoogleNews-vectors-negative300.bin.gz" % (data_path))
-    embeddData = os.path.normpath("%s/google_news/embedded_data/" % (data_path))
-    vocab_size = 3000000
-    embedding_size = 300
+    # generate training and test data
+    test_rows, train_rows = generate_test_training_set(clean_rows)
 
-    embeddings = LoadEmbeddings(filepath=embeddPath, data_path=embeddData, vocab_size=vocab_size,
-                                embedding_size=embedding_size)
-    headlines = []
-    headline_stances = []
-    articles = []
-    article_stances = []
-    valid_idx_list = []
-    valid_cos_list = []
+    debug = True
+    if debug == True:
+        # generate embeddings of docs by summing up all word embedding
+        #test_headlines, test_bodies, test_stances = generate_data_embeddings(test_rows, embeddings, embedding_size)
+        #train_headlines, train_bodies, train_stances = generate_data_embeddings(train_rows, embeddings, embedding_size)
 
-    invalid_stance = []
-    invalid_cosine = []
+        # generate embeddings of docs with fixed numbers of words
+        test_headlines, test_bodies, test_stances = \
+            generate_length_embeddings(test_rows, embeddings, embedding_size,max_length_headlines, max_length_bodies)
+        train_headlines, train_bodies, train_stances = \
+            generate_length_embeddings(train_rows, embeddings,embedding_size, max_length_headlines,max_length_bodies)
 
-    # check stances and construct data list
-    for i,row in enumerate(df):
-        if row['articleHeadlineStance'] in VALID_STANCE_LABELS and row['articleStance'] in VALID_STANCE_LABELS:
-            v1, v2, cosine_distance = avg_embedding_similarity(embeddings, embedding_size, row['articleHeadline'],
-                                                               row['articleBody'])
-            if cosine_distance < 1.0:
-                headlines.append(row['articleHeadline'])
-                headline_stances.append(row['articleHeadlineStance'])
-                articles.append(row['articleBody'])
-                article_stances.append(row['articleStance'])
-                valid_idx_list.append(i)
-                valid_cos_list.append(cosine_distance)
-                print('valid ' + str(i) + ' cosine distance: ' + str(cosine_distance))
-            else:
-                invalid_cosine.append(i)
-                print ('unvalid cosine ' + str(i))
-        else:
-            invalid_stance.append(i)
-            print ('unvalid stance ' + str(i))
-    print ('number of unvalid stance : ' + str(len(invalid_stance)))
-    print ('number of unvalid cosine : ' + str(len(invalid_cosine)))
-    print ('number of valid samples : '+ str(len(valid_idx_list)))
-
-    agree_idx_list, disagree_idx_list, discuss_idx_list = gen_idx_list(headline_stances, article_stances, valid_idx_list)
-
-    feature_path = path.dirname(path.abspath(__file__)) + "/features"
-    save_file(filepath=feature_path, filename='valid_cosine', variables=np.array([valid_idx_list, valid_cos_list],dtype=object))
-    myarray = np.fromfile('%s/%s.dat'%(feature_path,'valid_cosine'), dtype=np.double)
-    idx = myarray[:len(valid_idx_list)].astype(int)
-    cos = myarray[len(valid_idx_list):]
+        save_file(feature_path, "headline_embeddings_test_len", test_headlines)
+        save_file(feature_path, "headline_embeddings_train_len", train_headlines)
+        save_file(feature_path, "body_embeddings_test_len", test_bodies)
+        save_file(feature_path, "body_embeddings_train_len", train_bodies)
+        save_file(feature_path, "stances_test_len", test_stances)
+        save_file(feature_path, "stances_train_len", train_stances)
+    else:
+        test_headlines = load_file(feature_path, "headline_embeddings_test_len.npy")
+        train_headlines = load_file(feature_path, "headline_embeddings_train_len.npy")
+        test_bodies = load_file(feature_path, "body_embeddings_test_len.npy")
+        train_bodies = load_file(feature_path, "body_embeddings_train_len.npy")
+        test_stances = load_file(feature_path, "stances_test_len.npy")
+        train_stances = load_file(feature_path, "stances_train_len.npy")
 
     print ("hello")#7112

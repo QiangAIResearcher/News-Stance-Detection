@@ -55,11 +55,10 @@ if __name__ == '__main__':
     ../../data/embeddings
     '''
 
-    #data_path = path.dirname(path.dirname(path.dirname(path.abspath(__file__)))) + "/data/embeddings"
-    data_path = path.dirname(path.abspath(__file__)) + "/embeddings"
-
-    embeddPath = os.path.normpath("%s/google_news/GoogleNews-vectors-negative300.bin" % (data_path))
-    embeddData = os.path.normpath("%s/google_news/embedded_data/" % (data_path))
+    # configure path and get embedding
+    embeddings_path = path.dirname(path.dirname(path.abspath(__file__))) + "/embeddings"
+    embeddPath = os.path.normpath("%s/google_news/GoogleNews-vectors-negative300.bin.gz" % (embeddings_path))
+    embeddData = os.path.normpath("%s/google_news/embedded_data/" % (embeddings_path))
     vocab_size = 3000000
     embedding_size = 300
 
