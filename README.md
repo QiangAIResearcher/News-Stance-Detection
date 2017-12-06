@@ -12,9 +12,9 @@ Some statistics
     
     Number of total headline/body pairs in Emergent dataset: 7112
         
-        Number of invalid stances: 2053
+        Number of invalid stances (blank or "ignoring"): 2053
         
-        Number of invalid cosine distance: 58
+        Number of missing headlines or bodies: 58
         
         Number of valid pairs (our dataset): 5001
             
