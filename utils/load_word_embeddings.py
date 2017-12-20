@@ -1,5 +1,3 @@
-__author__ = 'qiangzha'
-
 import numpy as np
 import os
 import os.path as path

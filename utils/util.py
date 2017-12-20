@@ -1,13 +1,9 @@
-#__author__ = 'qiangzha'
-'''
-This script get data from the .CSV file and parse components
-'''
 import numpy as np
 import pandas as pd
 from csv import DictReader
 import os,os.path as path
 from utils.load_word_embeddings import LoadEmbeddings
-from utils.doc2vec import avg_feature_vector,len_feature_vector
+from utils.average_word2vec import avg_feature_vector,len_feature_vector
 
 #character whitelist
 chars = set([chr(i) for i in range(32,128)])
@@ -120,7 +116,7 @@ def generate_length_embeddings(rows,embeddings, embedding_size, max_length_headl
 
     return headlines, bodies, stances
 
-def generate_test_training_set(rows, test_set_fraction=0.2):
+def generate_test_training_set(rows, test_set_fraction=0.1):
     articleId_list = []
     for i, row in enumerate(rows):
         articleId_list.append(row['articleId'])
@@ -132,19 +128,12 @@ def generate_test_training_set(rows, test_set_fraction=0.2):
 
     test_rows =  [row for row in rows if row['articleId'] in article_ids_test]
     train_rows = [row for row in rows if row['articleId'] in article_ids_train]
-    #test_bodies =   [bodies[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_test]
-    #train_bodies =  [bodies[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_train]
-    #test_stances =    [stances[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_test]
-    #train_stances =   [stances[i] for i, row in enumerate(rows) if row['articleId'] in article_ids_train]
+
     return test_rows, train_rows
 
 def save_file(filepath,filename,variables):
     if not os.path.exists(filepath):
         os.makedirs(filepath)
-    #file_short = os.path.normpath("%s/%s.dat" %(filepath, filename))
-    #fp = np.memmap(file_short, dtype=np.double, mode='w+', shape=variables.shape)
-    #fp[:,:] = variables[:,:]
-    #del fp
 
     file_short = os.path.normpath("%s/%s" % (filepath, filename))
     np.save(file_short,variables)
@@ -158,7 +147,7 @@ def load_file(filepath,filename):
     return variables
 
 if __name__ == "__main__":
-
+    print("start...")
     _data_folder, feature_path, vocab_size, embedding_size, embeddings = configure()
     # read data
     clean_rows = load_file(_data_folder, "url-versions-2015-06-14-CleanQZ.npy")
@@ -169,27 +158,27 @@ if __name__ == "__main__":
     debug = True
     if debug == True:
         # generate embeddings of docs by summing up all word embedding
-        #test_headlines, test_bodies, test_stances = generate_data_embeddings(test_rows, embeddings, embedding_size)
-        #train_headlines, train_bodies, train_stances = generate_data_embeddings(train_rows, embeddings, embedding_size)
+        test_headlines, test_bodies, test_stances = generate_data_embeddings(test_rows, embeddings, embedding_size)
+        train_headlines, train_bodies, train_stances = generate_data_embeddings(train_rows, embeddings, embedding_size)
 
         # generate embeddings of docs with fixed numbers of words
-        test_headlines, test_bodies, test_stances = \
-            generate_length_embeddings(test_rows, embeddings, embedding_size,max_length_headlines, max_length_bodies)
-        train_headlines, train_bodies, train_stances = \
-            generate_length_embeddings(train_rows, embeddings,embedding_size, max_length_headlines,max_length_bodies)
+        #test_headlines, test_bodies, test_stances = \
+        #    generate_length_embeddings(test_rows, embeddings, embedding_size,max_length_headlines, max_length_bodies)
+        #train_headlines, train_bodies, train_stances = \
+        #    generate_length_embeddings(train_rows, embeddings,embedding_size, max_length_headlines,max_length_bodies)
 
-        save_file(feature_path, "headline_embeddings_test_len", test_headlines)
-        save_file(feature_path, "headline_embeddings_train_len", train_headlines)
-        save_file(feature_path, "body_embeddings_test_len", test_bodies)
-        save_file(feature_path, "body_embeddings_train_len", train_bodies)
-        save_file(feature_path, "stances_test_len", test_stances)
-        save_file(feature_path, "stances_train_len", train_stances)
+        save_file(feature_path, "headline_embeddings_test", test_headlines)
+        save_file(feature_path, "headline_embeddings_train", train_headlines)
+        save_file(feature_path, "body_embeddings_test", test_bodies)
+        save_file(feature_path, "body_embeddings_train", train_bodies)
+        save_file(feature_path, "stances_test", test_stances)
+        save_file(feature_path, "stances_train", train_stances)
     else:
-        test_headlines = load_file(feature_path, "headline_embeddings_test_len.npy")
-        train_headlines = load_file(feature_path, "headline_embeddings_train_len.npy")
-        test_bodies = load_file(feature_path, "body_embeddings_test_len.npy")
-        train_bodies = load_file(feature_path, "body_embeddings_train_len.npy")
-        test_stances = load_file(feature_path, "stances_test_len.npy")
-        train_stances = load_file(feature_path, "stances_train_len.npy")
+        test_headlines = load_file(feature_path, "headline_embeddings_test.npy")
+        train_headlines = load_file(feature_path, "headline_embeddings_train.npy")
+        test_bodies = load_file(feature_path, "body_embeddings_test.npy")
+        train_bodies = load_file(feature_path, "body_embeddings_train.npy")
+        test_stances = load_file(feature_path, "stances_test.npy")
+        train_stances = load_file(feature_path, "stances_train.npy")
 
     print ("hello")#7112
